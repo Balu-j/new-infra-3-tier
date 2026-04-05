@@ -24,6 +24,5 @@ resource "aws_db_instance" "swiggy-db" {
     prevent_destroy = false
     ignore_changes  = all
   }
-}
-###
+}###
 
