@@ -1,4 +1,39 @@
-# Create an EC2 Auto Scaling Group - app
+# -------------------------------
+# Get latest Amazon Linux AMI
+# -------------------------------
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+}
+
+# -------------------------------
+# Launch Template
+# -------------------------------
+resource "aws_launch_template" "swiggy-app-template" {
+  name_prefix   = "swiggy-app-template-"
+  image_id      = data.aws_ami.amazon_linux.id
+  instance_type = "t3.micro"
+
+  vpc_security_group_ids = [
+    aws_security_group.swiggy-ec2-asg-sg-app.id
+  ]
+
+  user_data = base64encode(<<-EOF
+    #!/bin/bash
+    yum update -y
+    yum install mysql -y
+  EOF
+  )
+}
+
+# -------------------------------
+# Auto Scaling Group
+# -------------------------------
 resource "aws_autoscaling_group" "swiggy-app-asg" {
   name = "swiggy-app-asg"
 
@@ -15,29 +50,8 @@ resource "aws_autoscaling_group" "swiggy-app-asg" {
   min_size         = 2
   max_size         = 3
   desired_capacity = 2
+
+  depends_on = [
+    aws_launch_template.swiggy-app-template
+  ]
 }
-
-# Create a launch template for the EC2 instances
-resource "aws_launch_template" "swiggy-app-template" {
-  name_prefix   = "swiggy-app-template"
-  image_id      = "ami-01b14b7ad41e17ba4"
-  instance_type = "t3.micro"
-
-  network_interfaces {
-    security_groups             = [aws_security_group.swiggy-ec2-asg-sg-app.id]
-    associate_public_ip_address = false
-  }
-
-  user_data = base64encode(<<-EOF
-    #!/bin/bash
-
-    sudo yum install mysql -y
-  EOF
-  )
-
-  lifecycle {
-    prevent_destroy = false
-    ignore_changes  = all
-  }
-}
-
